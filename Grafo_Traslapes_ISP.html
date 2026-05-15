@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Grafo Traslapes ISP — 900 MHz ANE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0e1a;color:#e0e6f0;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* HEADER */
+#hdr{background:linear-gradient(135deg,#0d1b2a,#1b2838);border-bottom:2px solid #3A86FF44;padding:9px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#hdr h1{font-size:14px;font-weight:700;color:#7eb8f7}
+#hdr .sub{font-size:10px;color:#5a7090;margin-top:1px}
+.stats{display:flex;gap:16px}
+.sn{font-size:17px;font-weight:700;color:#7eb8f7}
+.sl{font-size:9px;color:#5a7090;text-transform:uppercase}
+
+/* TOOLBAR */
+#tb{background:#111826;border-bottom:1px solid #1e2e44;padding:7px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap}
+.tb-lbl{font-size:10px;color:#5a7090;font-weight:700;text-transform:uppercase;white-space:nowrap}
+#area-slider{-webkit-appearance:none;appearance:none;width:160px;height:4px;border-radius:2px;background:#2a3a5c;outline:none;cursor:pointer}
+#area-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#3A86FF;cursor:pointer;border:2px solid #7eb8f7}
+#slider-val{font-size:11px;color:#3A86FF;font-weight:700;min-width:70px}
+.tbtn{padding:4px 12px;border-radius:14px;border:1px solid #2a3a5c;background:#1e2840;color:#8ea8cc;cursor:pointer;font-size:11px;font-weight:600;transition:all .18s}
+.tbtn:hover{border-color:#3A86FF;color:#fff}
+.tbtn.on{background:#1a3a6a;border-color:#3A86FF;color:#fff}
+#link-count{margin-left:auto;font-size:11px;color:#5a7090}
+#link-count span{color:#f09040;font-weight:700}
+
+/* MAIN */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* PANEL LATERAL */
+#panel{width:270px;min-width:240px;background:#111826;border-right:1px solid #1e2e44;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#panel-head{padding:12px 14px 8px;border-bottom:1px solid #1e2e44;flex-shrink:0}
+#panel-title{font-size:12px;font-weight:700;color:#7eb8f7;margin-bottom:2px}
+#panel-sub{font-size:10px;color:#5a7090}
+#panel-body{flex:1;overflow-y:auto;padding:10px 12px}
+#panel-body::-webkit-scrollbar{width:3px}
+#panel-body::-webkit-scrollbar-thumb{background:#2a3a5c;border-radius:2px}
+
+/* Stats globales */
+.stat-card{background:#0d1420;border:1px solid #1e2e44;border-radius:6px;padding:8px 10px;margin-bottom:6px}
+.sc-title{font-size:9px;font-weight:700;text-transform:uppercase;color:#5a7090;letter-spacing:.8px;margin-bottom:6px}
+.sc-row{display:flex;justify-content:space-between;align-items:center;margin:3px 0;font-size:10px}
+.sc-key{color:#6a80a0}
+.sc-val{color:#c0d0e8;font-weight:600}
+.sc-val.hi{color:#f09040}
+.sc-val.ok{color:#4ade80}
+
+/* Ficha nodo seleccionado */
+#node-card{display:none;background:#0d1420;border:1px solid #3A86FF44;border-radius:7px;padding:10px;margin-bottom:8px}
+#nc-name{font-size:11px;font-weight:700;color:#7eb8f7;margin-bottom:7px;line-height:1.35}
+.nc-row{display:flex;justify-content:space-between;font-size:10px;margin:2px 0;border-bottom:1px solid #1e2e4422;padding-bottom:2px}
+.nc-k{color:#5a7090}
+.nc-v{color:#c0d0e8;font-weight:600;text-align:right;max-width:55%}
+
+/* Lista de vecinos */
+#neighbors-list{margin-top:10px}
+.nb-title{font-size:9px;font-weight:700;text-transform:uppercase;color:#5a7090;letter-spacing:.8px;margin-bottom:5px}
+.nb-item{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#131c2e;border-radius:4px;margin:2px 0;cursor:pointer;transition:all .15s;font-size:10px}
+.nb-item:hover{background:#1a2840;border-left:2px solid #3A86FF}
+.nb-name{color:#9ab0cc;flex:1;padding-right:6px}
+.nb-area{color:#f09040;font-weight:700;white-space:nowrap}
+
+/* Leyenda cluster */
+#legend{margin-top:8px}
+.leg-item{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:10px;color:#7a8fb5;cursor:pointer;padding:2px 4px;border-radius:3px;transition:background .15s}
+.leg-item:hover{background:#1a2535}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* SVG canvas */
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+svg{width:100%;height:100%;cursor:grab}
+svg.dragging{cursor:grabbing}
+
+.node circle{cursor:pointer;transition:opacity .25s}
+.node text{pointer-events:none;font-family:'Segoe UI',sans-serif;font-size:10px;fill:#c0d0e8;text-shadow:0 0 4px #0a0e1a}
+.link{stroke-opacity:.7;transition:opacity .25s}
+
+/* Tooltip */
+#tip{position:absolute;background:#111826ee;border:1px solid #2a3a5c;border-radius:7px;padding:9px 12px;font-size:10px;pointer-events:none;display:none;max-width:230px;z-index:100}
+#tip .tt{font-weight:700;color:#7eb8f7;margin-bottom:4px}
+#tip .tr{color:#9ab0cc;margin:2px 0}
+#tip .ta{color:#f09040;font-weight:700}
+
+/* Fade when node selected */
+.faded{opacity:.08!important}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div>
+    <h1>🕸 Grafo de Traslapes — ISPs Espectro 900 MHz</h1>
+    <div class="sub">Nodos = expedientes ISP · Aristas = solapamientos (distinto NIT) · Radio por ANILLO</div>
+  </div>
+  <div class="stats">
+    <div><div class="sn" id="s-nodos">23</div><div class="sl">Nodos</div></div>
+    <div><div class="sn" id="s-links" style="color:#f09040">22</div><div class="sl">Traslapes</div></div>
+    <div><div class="sn" id="s-clusters">9</div><div class="sl">Clusters</div></div>
+    <div><div class="sn" id="s-km2" style="color:#f87171">—</div><div class="sl">km² totales</div></div>
+  </div>
+</div>
+
+<div id="tb">
+  <span class="tb-lbl">Filtrar aristas ≥</span>
+  <input type="range" id="area-slider" min="0" max="1510" step="10" value="0">
+  <span id="slider-val">0 km²</span>
+  <div style="width:1px;height:18px;background:#2a3a5c;margin:0 4px"></div>
+  <span class="tb-lbl">Layout:</span>
+  <button class="tbtn on" id="btn-force" onclick="setLayout('force',this)">⚛ Fuerza</button>
+  <button class="tbtn" id="btn-radial" onclick="setLayout('radial',this)">⭕ Radial</button>
+  <div style="width:1px;height:18px;background:#2a3a5c;margin:0 4px"></div>
+  <button class="tbtn" onclick="resetGraph()">↺ Reset</button>
+  <button class="tbtn" id="btn-labels" onclick="toggleLabels(this)">✓ Labels</button>
+  <span id="link-count">Aristas visibles: <span id="vc">22</span></span>
+</div>
+
+<div id="main">
+  <div id="panel">
+    <div id="panel-head">
+      <div id="panel-title">Panel de análisis</div>
+      <div id="panel-sub">Haz clic en un nodo para ver detalle</div>
+    </div>
+    <div id="panel-body">
+
+      <div id="node-card">
+        <div id="nc-name">—</div>
+        <div id="nc-rows"></div>
+        <div id="neighbors-list">
+          <div class="nb-title">Traslapes directos</div>
+          <div id="nb-items"></div>
+        </div>
+      </div>
+
+      <div class="stat-card" id="global-stats">
+        <div class="sc-title">Estadísticas globales</div>
+        <div class="sc-row"><span class="sc-key">ISP más conectado</span><span class="sc-val hi" id="gs-hub">—</span></div>
+        <div class="sc-row"><span class="sc-key">Mayor traslape</span><span class="sc-val hi" id="gs-max">—</span></div>
+        <div class="sc-row"><span class="sc-key">km² totales solapados</span><span class="sc-val hi" id="gs-km2">—</span></div>
+        <div class="sc-row"><span class="sc-key">Nodos aislados (sin traslape)</span><span class="sc-val ok" id="gs-iso">—</span></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="sc-title">Leyenda — Clusters</div>
+        <div id="legend"></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="sc-title">Escala aristas (área km²)</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+          <div style="display:flex;align-items:center;gap:7px;font-size:10px;color:#9ab0cc"><div style="width:28px;height:2px;background:#4ade80;border-radius:1px"></div>&lt; 50 km²</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:10px;color:#9ab0cc"><div style="width:28px;height:4px;background:#facc15;border-radius:1px"></div>50 – 200 km²</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:10px;color:#9ab0cc"><div style="width:28px;height:7px;background:#f09040;border-radius:1px"></div>200 – 500 km²</div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:10px;color:#9ab0cc"><div style="width:28px;height:11px;background:#f87171;border-radius:1px"></div>&gt; 500 km²</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <svg id="svg"></svg>
+    <div id="tip"></div>
+  </div>
+</div>
+
+<script>
+const RAW = {"nodes": [{"id": "93000002", "nombre": "NETICS DE COLOMBIA S.A.S.", "nit": "900575726", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Norte de Santander"], "nodos_count": 9, "degree": 2, "area_total": 901.95, "cluster": 0, "color": "#3A86FF"}, {"id": "93000003", "nombre": "WIRELESS SERVICES ENTERPRISE SAS", "nit": "901491471", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Cundinamarca", "Tolima"], "nodos_count": 4, "degree": 0, "area_total": 0, "cluster": 1, "color": "#FF595E"}, {"id": "93000006", "nombre": "ARTES MECATRONICOS SOCIEDAD POR ACCIONES SIMPLIFICADA", "nit": "901045694", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Casanare"], "nodos_count": 3, "degree": 1, "area_total": 0.78, "cluster": 0, "color": "#3A86FF"}, {"id": "93000007", "nombre": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nit": "900156270", "ftx": 902, "frx": 947, "configs": ["ANILLO 2", "ANILLO 1"], "deptos": ["Cundinamarca"], "nodos_count": 10, "degree": 1, "area_total": 42.11, "cluster": 2, "color": "#FFCA3A"}, {"id": "93000008", "nombre": "COLTECH COMUNICACIONES SAS ESP", "nit": "901426335", "ftx": 902, "frx": 947, "configs": ["ANILLO 2", "ANILLO 1"], "deptos": ["Boyacá", "Cundinamarca", "Norte de Santander", "Huila"], "nodos_count": 10, "degree": 7, "area_total": 3522.45, "cluster": 0, "color": "#3A86FF"}, {"id": "93000009", "nombre": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nit": "900156270", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Atlántico"], "nodos_count": 10, "degree": 3, "area_total": 1551.51, "cluster": 3, "color": "#8AC926"}, {"id": "93000010", "nombre": "AULAS DIGITALES DE COLOMBIA S.A.S.", "nit": "900369578", "ftx": 902, "frx": 947, "configs": ["ANILLO 2", "ANILLO 3"], "deptos": ["Magdalena"], "nodos_count": 3, "degree": 3, "area_total": 1962.9, "cluster": 3, "color": "#8AC926"}, {"id": "93000011", "nombre": "CITCOMM ENTERPRISE LTDA", "nit": "900206102", "ftx": 902, "frx": 947, "configs": ["ANILLO 2", "ANILLO 1", "ANILLO 3"], "deptos": ["Guainía", "Valle del Cauca", "Huila", "La Guajira", "Vaupés", "Bolívar", "Chocó"], "nodos_count": 10, "degree": 4, "area_total": 2715.08, "cluster": 0, "color": "#3A86FF"}, {"id": "93000012", "nombre": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nit": "900156270", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Norte de Santander", "Santander"], "nodos_count": 10, "degree": 2, "area_total": 333.9, "cluster": 0, "color": "#3A86FF"}, {"id": "93000013", "nombre": "ZONALIBRE INGENIERIA S.A.S", "nit": "900982066", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Chocó", "Meta"], "nodos_count": 4, "degree": 0, "area_total": 0, "cluster": 4, "color": "#f87171"}, {"id": "93000015", "nombre": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nit": "900156270", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Casanare", "Meta"], "nodos_count": 10, "degree": 1, "area_total": 209.92, "cluster": 0, "color": "#3A86FF"}, {"id": "93000016", "nombre": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nit": "900156270", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Arauca", "Cundinamarca", "Guaviare"], "nodos_count": 10, "degree": 0, "area_total": 0, "cluster": 5, "color": "#c07af7"}, {"id": "93000017", "nombre": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nit": "900156270", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Caldas", "Risaralda", "Quindio"], "nodos_count": 10, "degree": 0, "area_total": 0, "cluster": 6, "color": "#06D6A0"}, {"id": "93000018", "nombre": "CONECTAMOS.NET S.A.S", "nit": "901920129", "ftx": 902, "frx": 947, "configs": ["ANILLO 2"], "deptos": ["Boyacá"], "nodos_count": 1, "degree": 2, "area_total": 354.77, "cluster": 0, "color": "#3A86FF"}, {"id": "93000020", "nombre": "BITT S.A.S", "nit": "804012745", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Cauca", "Putumayo", "Chocó", "Huila"], "nodos_count": 10, "degree": 3, "area_total": 1484.14, "cluster": 0, "color": "#3A86FF"}, {"id": "93000023", "nombre": "S.S.TECHNOLOGICAL SOLUTIONS S.A.S", "nit": "901949413", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Boyacá", "Casanare"], "nodos_count": 10, "degree": 4, "area_total": 446.39, "cluster": 0, "color": "#3A86FF"}, {"id": "93000024", "nombre": "SISTEMAS Y TELECOMUNICACIONES DEL ORIENTE SAS", "nit": "804003326", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["La Guajira", "Cesar", "Tolima", "Santander", "Cundinamarca"], "nodos_count": 10, "degree": 1, "area_total": 42.11, "cluster": 2, "color": "#FFCA3A"}, {"id": "93000027", "nombre": "NETWORKS  TV SAS", "nit": "900675641", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Huila"], "nodos_count": 3, "degree": 3, "area_total": 79.69, "cluster": 0, "color": "#3A86FF"}, {"id": "93000028", "nombre": "VISIÓN SATELITAL COMUNICACIONES S.A.S.", "nit": "830136839", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Cundinamarca"], "nodos_count": 1, "degree": 0, "area_total": 0, "cluster": 7, "color": "#FB5607"}, {"id": "93000029", "nombre": "WAVENET ISP SAS", "nit": "901750795", "ftx": 902, "frx": 947, "configs": ["ANILLO 3"], "deptos": ["Chocó"], "nodos_count": 1, "degree": 1, "area_total": 212.45, "cluster": 0, "color": "#3A86FF"}, {"id": "93000033", "nombre": "SPACE COMUNICACIONES S.A.S.", "nit": "901283944", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Atlántico"], "nodos_count": 1, "degree": 3, "area_total": 467.88, "cluster": 3, "color": "#8AC926"}, {"id": "93000035", "nombre": "RED TOTAL T.I S.A.S", "nit": "901949848", "ftx": 902, "frx": 947, "configs": ["ANILLO 3"], "deptos": ["Atlántico"], "nodos_count": 1, "degree": 3, "area_total": 2760.19, "cluster": 3, "color": "#8AC926"}, {"id": "93000036", "nombre": "NETCOM TECNOLOGIA Y COMUNICACIONES SAS", "nit": "901174637", "ftx": 902, "frx": 947, "configs": ["ANILLO 1"], "deptos": ["Cauca"], "nodos_count": 1, "degree": 0, "area_total": 0, "cluster": 8, "color": "#4ade80"}], "links": [{"source": "93000010", "target": "93000035", "nombre_a": "AULAS DIGITALES DE COLOMBIA S.A.S.", "nombre_b": "RED TOTAL T.I S.A.S", "area_km2": 1509.82}, {"source": "93000008", "target": "93000011", "nombre_a": "COLTECH COMUNICACIONES SAS ESP", "nombre_b": "CITCOMM ENTERPRISE LTDA", "area_km2": 1482.51}, {"source": "93000009", "target": "93000035", "nombre_a": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nombre_b": "RED TOTAL T.I S.A.S", "area_km2": 1037.92}, {"source": "93000011", "target": "93000020", "nombre_a": "CITCOMM ENTERPRISE LTDA", "nombre_b": "BITT S.A.S", "area_km2": 993.1}, {"source": "93000002", "target": "93000008", "nombre_a": "NETICS DE COLOMBIA S.A.S.", "nombre_b": "COLTECH COMUNICACIONES SAS ESP", "area_km2": 780.5}, {"source": "93000008", "target": "93000020", "nombre_a": "COLTECH COMUNICACIONES SAS ESP", "nombre_b": "BITT S.A.S", "area_km2": 458.0}, {"source": "93000009", "target": "93000010", "nombre_a": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nombre_b": "AULAS DIGITALES DE COLOMBIA S.A.S.", "area_km2": 355.62}, {"source": "93000008", "target": "93000018", "nombre_a": "COLTECH COMUNICACIONES SAS ESP", "nombre_b": "CONECTAMOS.NET S.A.S", "area_km2": 344.22}, {"source": "93000008", "target": "93000023", "nombre_a": "COLTECH COMUNICACIONES SAS ESP", "nombre_b": "S.S.TECHNOLOGICAL SOLUTIONS S.A.S", "area_km2": 225.14}, {"source": "93000008", "target": "93000012", "nombre_a": "COLTECH COMUNICACIONES SAS ESP", "nombre_b": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "area_km2": 212.45}, {"source": "93000011", "target": "93000029", "nombre_a": "CITCOMM ENTERPRISE LTDA", "nombre_b": "WAVENET ISP SAS", "area_km2": 212.45}, {"source": "93000033", "target": "93000035", "nombre_a": "SPACE COMUNICACIONES S.A.S.", "nombre_b": "RED TOTAL T.I S.A.S", "area_km2": 212.45}, {"source": "93000015", "target": "93000023", "nombre_a": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nombre_b": "S.S.TECHNOLOGICAL SOLUTIONS S.A.S", "area_km2": 209.92}, {"source": "93000009", "target": "93000033", "nombre_a": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nombre_b": "SPACE COMUNICACIONES S.A.S.", "area_km2": 157.97}, {"source": "93000002", "target": "93000012", "nombre_a": "NETICS DE COLOMBIA S.A.S.", "nombre_b": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "area_km2": 121.45}, {"source": "93000010", "target": "93000033", "nombre_a": "AULAS DIGITALES DE COLOMBIA S.A.S.", "nombre_b": "SPACE COMUNICACIONES S.A.S.", "area_km2": 97.46}, {"source": "93000007", "target": "93000024", "nombre_a": "CORPORACION RED NACIONAL ACADEMICA DE TECNOLOGIA AVANZADA RENATA", "nombre_b": "SISTEMAS Y TELECOMUNICACIONES DEL ORIENTE SAS", "area_km2": 42.11}, {"source": "93000020", "target": "93000027", "nombre_a": "BITT S.A.S", "nombre_b": "NETWORKS  TV SAS", "area_km2": 33.04}, {"source": "93000011", "target": "93000027", "nombre_a": "CITCOMM ENTERPRISE LTDA", "nombre_b": "NETWORKS  TV SAS", "area_km2": 27.02}, {"source": "93000008", "target": "93000027", "nombre_a": "COLTECH COMUNICACIONES SAS ESP", "nombre_b": "NETWORKS  TV SAS", "area_km2": 19.63}, {"source": "93000018", "target": "93000023", "nombre_a": "CONECTAMOS.NET S.A.S", "nombre_b": "S.S.TECHNOLOGICAL SOLUTIONS S.A.S", "area_km2": 10.55}, {"source": "93000006", "target": "93000023", "nombre_a": "ARTES MECATRONICOS SOCIEDAD POR ACCIONES SIMPLIFICADA", "nombre_b": "S.S.TECHNOLOGICAL SOLUTIONS S.A.S", "area_km2": 0.78}]};
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function linkColor(area) {
+  if (area < 50)   return '#4ade80';
+  if (area < 200)  return '#facc15';
+  if (area < 500)  return '#f09040';
+  return '#f87171';
+}
+function linkWidth(area) {
+  return 1.5 + Math.sqrt(area / 60);
+}
+function nodeRadius(deg) {
+  return 10 + deg * 4.5;
+}
+function shortName(nombre) {
+  const words = nombre.split(' ');
+  if (words.length <= 3) return nombre.substring(0,22);
+  return words.slice(0,3).join(' ').substring(0,22);
+}
+
+// ── SETUP SVG ─────────────────────────────────────────────────────────────────
+const svg    = d3.select('#svg');
+const wrap   = document.getElementById('canvas-wrap');
+let W = wrap.clientWidth, H = wrap.clientHeight;
+
+const g = svg.append('g');
+
+// Zoom
+const zoom = d3.zoom()
+  .scaleExtent([.2, 5])
+  .on('zoom', e => {
+    g.attr('transform', e.transform);
+    svg.classed('dragging', e.sourceEvent && e.sourceEvent.type === 'mousemove');
+  });
+svg.call(zoom).on('dblclick.zoom', null);
+
+// ── DATA PREP ─────────────────────────────────────────────────────────────────
+let nodes = RAW.nodes.map(d => ({...d}));
+let links = RAW.links.map(d => ({...d}));
+let minArea = 0;
+let showLabels = true;
+let selectedNode = null;
+
+// Unique clusters for legend
+const clusters = [...new Set(nodes.map(d => d.cluster))].sort();
+const clusterColors = {};
+clusters.forEach(c => {
+  const n = nodes.find(d => d.cluster === c);
+  clusterColors[c] = n ? n.color : '#888';
+});
+
+// Global stats
+const totalKm2 = links.reduce((s, l) => s + l.area_km2, 0);
+document.getElementById('gs-hub').textContent   = shortName(nodes.sort((a,b)=>b.degree-a.degree)[0].nombre) + ' (' + nodes[0].degree + ')';
+document.getElementById('gs-max').textContent   = Math.max(...links.map(l=>l.area_km2)).toLocaleString('es-CO') + ' km²';
+document.getElementById('gs-km2').textContent   = totalKm2.toLocaleString('es-CO', {maximumFractionDigits:0}) + ' km²';
+document.getElementById('gs-iso').textContent   = nodes.filter(n=>n.degree===0).length;
+document.getElementById('s-km2').textContent    = (totalKm2/1000).toFixed(1) + 'k';
+
+// Legend
+const legDiv = document.getElementById('legend');
+clusters.forEach(c => {
+  const ns = nodes.filter(d => d.cluster === c);
+  if (!ns.length) return;
+  const div = document.createElement('div');
+  div.className = 'leg-item';
+  div.dataset.cluster = c;
+  div.innerHTML = `<div class="leg-dot" style="background:${clusterColors[c]}"></div>
+    <span>Cluster ${c+1} — ${ns.length} ISP${ns.length>1?'s':''}</span>`;
+  div.onclick = () => highlightCluster(c);
+  legDiv.appendChild(div);
+});
+
+// ── SIMULATION ────────────────────────────────────────────────────────────────
+let sim;
+function createSimulation(ns, ls) {
+  if (sim) sim.stop();
+  sim = d3.forceSimulation(ns)
+    .force('link', d3.forceLink(ls).id(d => d.id).distance(d => 80 + Math.sqrt(d.area_km2 / 5)).strength(.7))
+    .force('charge', d3.forceManyBody().strength(-400))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d.degree) + 12))
+    .on('tick', ticked);
+  return sim;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+let linkSel, nodeSel, labelSel;
+
+function renderGraph() {
+  g.selectAll('*').remove();
+
+  const visLinks = links.filter(l => l.area_km2 >= minArea);
+  document.getElementById('vc').textContent = visLinks.length;
+
+  // Compute active degrees for sizing
+  const activeDeg = {};
+  nodes.forEach(n => activeDeg[n.id] = 0);
+  visLinks.forEach(l => {
+    const sid = typeof l.source === 'object' ? l.source.id : l.source;
+    const tid = typeof l.target === 'object' ? l.target.id : l.target;
+    activeDeg[sid] = (activeDeg[sid]||0) + 1;
+    activeDeg[tid] = (activeDeg[tid]||0) + 1;
+  });
+
+  // Arrow marker for links (glow effect via duplicate)
+  const defs = g.append('defs');
+  defs.append('filter').attr('id','glow').html(`
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>`);
+
+  // Links
+  linkSel = g.append('g').attr('class','links')
+    .selectAll('line')
+    .data(visLinks).join('line')
+    .attr('class','link')
+    .attr('stroke', d => linkColor(d.area_km2))
+    .attr('stroke-width', d => linkWidth(d.area_km2))
+    .on('mousemove', showLinkTip)
+    .on('mouseleave', hideTip);
+
+  // Nodes
+  const nodeG = g.append('g').attr('class','nodes')
+    .selectAll('g').data(nodes).join('g')
+    .attr('class','node')
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag',  dragged)
+      .on('end',   dragEnd))
+    .on('click', nodeClick)
+    .on('dblclick', nodePin)
+    .on('mousemove', showNodeTip)
+    .on('mouseleave', hideTip);
+
+  nodeG.append('circle')
+    .attr('r', d => nodeRadius(activeDeg[d.id]||0))
+    .attr('fill', d => d.color)
+    .attr('fill-opacity', .85)
+    .attr('stroke', d => d.color)
+    .attr('stroke-width', 2)
+    .attr('stroke-opacity', .5);
+
+  // Pulse ring for high-degree nodes
+  nodeG.filter(d => (activeDeg[d.id]||0) >= 4)
+    .append('circle')
+    .attr('r', d => nodeRadius(activeDeg[d.id]||0) + 6)
+    .attr('fill', 'none')
+    .attr('stroke', d => d.color)
+    .attr('stroke-width', 1)
+    .attr('stroke-opacity', .35)
+    .attr('stroke-dasharray', '4,3');
+
+  // Labels
+  labelSel = nodeG.append('text')
+    .attr('dy', d => nodeRadius(activeDeg[d.id]||0) + 12)
+    .attr('text-anchor','middle')
+    .style('display', showLabels ? null : 'none')
+    .text(d => shortName(d.nombre));
+
+  nodeSel = nodeG;
+
+  createSimulation(nodes, visLinks);
+}
+
+function ticked() {
+  linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+         .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+}
+
+// ── DRAG ──────────────────────────────────────────────────────────────────────
+function dragStart(event, d) { if (!event.active) sim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; }
+function dragged(event, d)   { d.fx=event.x; d.fy=event.y; }
+function dragEnd(event, d)   { if (!event.active) sim.alphaTarget(0); if (!d.pinned){d.fx=null;d.fy=null;} }
+
+// ── INTERACTIONS ──────────────────────────────────────────────────────────────
+function nodeClick(event, d) {
+  event.stopPropagation();
+  if (selectedNode === d.id) { clearSelection(); return; }
+  selectedNode = d.id;
+
+  const connectedIds = new Set([d.id]);
+  links.filter(l => l.area_km2 >= minArea).forEach(l => {
+    const sid = typeof l.source==='object'?l.source.id:l.source;
+    const tid = typeof l.target==='object'?l.target.id:l.target;
+    if (sid===d.id) connectedIds.add(tid);
+    if (tid===d.id) connectedIds.add(sid);
+  });
+
+  nodeSel.selectAll('circle').classed('faded', nd => !connectedIds.has(nd.id));
+  labelSel.classed('faded', nd => !connectedIds.has(nd.id));
+  linkSel.classed('faded', l => {
+    const sid = typeof l.source==='object'?l.source.id:l.source;
+    const tid = typeof l.target==='object'?l.target.id:l.target;
+    return sid!==d.id && tid!==d.id;
+  });
+
+  showNodePanel(d);
+}
+
+function nodePin(event, d) {
+  d.pinned = !d.pinned;
+  if (d.pinned) { d.fx=d.x; d.fy=d.y; }
+  else          { d.fx=null; d.fy=null; }
+  // Visual indicator
+  d3.select(event.currentTarget).select('circle')
+    .attr('stroke-width', d.pinned ? 3 : 2)
+    .attr('stroke-opacity', d.pinned ? 1 : .5);
+}
+
+function clearSelection() {
+  selectedNode = null;
+  nodeSel.selectAll('circle').classed('faded', false);
+  labelSel.classed('faded', false);
+  linkSel.classed('faded', false);
+  document.getElementById('node-card').style.display = 'none';
+  document.getElementById('panel-title').textContent = 'Panel de análisis';
+  document.getElementById('panel-sub').textContent   = 'Haz clic en un nodo para ver detalle';
+}
+
+svg.on('click', () => clearSelection());
+
+function highlightCluster(c) {
+  clearSelection();
+  nodeSel.selectAll('circle').classed('faded', d => d.cluster !== c);
+  labelSel.classed('faded', d => d.cluster !== c);
+  linkSel.classed('faded', l => {
+    const sid = typeof l.source==='object'?l.source.cluster:nodes.find(n=>n.id==l.source)?.cluster;
+    const tid = typeof l.target==='object'?l.target.cluster:nodes.find(n=>n.id==l.target)?.cluster;
+    return sid!==c || tid!==c;
+  });
+}
+
+// ── SIDE PANEL ────────────────────────────────────────────────────────────────
+function showNodePanel(d) {
+  document.getElementById('panel-title').textContent = 'Detalle nodo';
+  document.getElementById('panel-sub').textContent   = `Expediente ${d.id}`;
+  document.getElementById('nc-name').textContent     = d.nombre;
+
+  const myLinks = links.filter(l => {
+    const sid = typeof l.source==='object'?l.source.id:l.source;
+    const tid = typeof l.target==='object'?l.target.id:l.target;
+    return (sid===d.id||tid===d.id) && l.area_km2 >= minArea;
+  });
+
+  document.getElementById('nc-rows').innerHTML = `
+    <div class="nc-row"><span class="nc-k">Expediente</span><span class="nc-v">${d.id}</span></div>
+    <div class="nc-row"><span class="nc-k">NIT</span><span class="nc-v">${d.nit}</span></div>
+    <div class="nc-row"><span class="nc-k">FTX / FRX</span><span class="nc-v">${d.ftx} / ${d.frx} MHz</span></div>
+    <div class="nc-row"><span class="nc-k">Nodos red</span><span class="nc-v">${d.nodos_count}</span></div>
+    <div class="nc-row"><span class="nc-k">ANILLOs</span><span class="nc-v">${d.configs.join(', ')}</span></div>
+    <div class="nc-row"><span class="nc-k">Deptos</span><span class="nc-v">${d.deptos.join(', ')}</span></div>
+    <div class="nc-row"><span class="nc-k">Traslapes activos</span><span class="nc-v" style="color:#f09040">${myLinks.length}</span></div>
+    <div class="nc-row"><span class="nc-k">km² solapados</span><span class="nc-v" style="color:#f87171">${myLinks.reduce((s,l)=>s+l.area_km2,0).toFixed(1)}</span></div>
+    <div class="nc-row"><span class="nc-k">Cluster</span><span class="nc-v">${d.cluster+1}</span></div>`;
+
+  const nbDiv = document.getElementById('nb-items');
+  nbDiv.innerHTML = '';
+  myLinks.sort((a,b)=>b.area_km2-a.area_km2).forEach(l => {
+    const sid  = typeof l.source==='object'?l.source.id:l.source;
+    const tid  = typeof l.target==='object'?l.target.id:l.target;
+    const peer = sid===d.id ? tid : sid;
+    const peerName = sid===d.id ? l.nombre_b : l.nombre_a;
+    const div = document.createElement('div');
+    div.className = 'nb-item';
+    div.innerHTML = `<span class="nb-name">${shortName(peerName)}<br><span style="color:#5a7090;font-size:9px">Exp ${peer}</span></span>
+      <span class="nb-area">${l.area_km2.toLocaleString('es-CO')} km²</span>`;
+    div.onclick = () => {
+      const nd = nodes.find(n=>n.id===peer);
+      if (nd) nodeClick({stopPropagation:()=>{}}, nd);
+    };
+    nbDiv.appendChild(div);
+  });
+
+  document.getElementById('node-card').style.display = 'block';
+  document.getElementById('panel-body').scrollTop = 0;
+}
+
+// ── TOOLTIPS ──────────────────────────────────────────────────────────────────
+const tip = document.getElementById('tip');
+function showNodeTip(event, d) {
+  tip.style.display = 'block';
+  tip.innerHTML = `<div class="tt">${d.nombre.substring(0,38)}</div>
+    <div class="tr">Exp: <b>${d.id}</b> · NIT: ${d.nit}</div>
+    <div class="tr">ANILLOs: ${d.configs.join(', ')} · ${d.nodos_count} nodos</div>
+    <div class="tr">Traslapes: <span class="ta">${d.degree}</span> · km² total: <span class="ta">${d.area_total.toFixed(0)}</span></div>
+    <div class="tr" style="color:#7a8fb5;font-size:9px;margin-top:3px">Clic: aislar · Doble clic: fijar</div>`;
+  moveTip(event);
+}
+function showLinkTip(event, l) {
+  const sid = typeof l.source==='object'?l.source.id:l.source;
+  const tid = typeof l.target==='object'?l.target.id:l.target;
+  tip.style.display = 'block';
+  tip.innerHTML = `<div class="tt">⚠ Traslape</div>
+    <div class="tr">${l.nombre_a.substring(0,30)}${l.nombre_a.length>30?'...':''}</div>
+    <div class="tr">↔ ${l.nombre_b.substring(0,30)}${l.nombre_b.length>30?'...':''}</div>
+    <div class="tr" style="margin-top:4px">Área solapada: <span class="ta">${l.area_km2.toLocaleString('es-CO')} km²</span></div>`;
+  moveTip(event);
+}
+function moveTip(event) {
+  const r = wrap.getBoundingClientRect();
+  let x = event.clientX - r.left + 14, y = event.clientY - r.top + 14;
+  if (x + 240 > W) x -= 260;
+  if (y + 120 > H) y -= 130;
+  tip.style.left = x+'px'; tip.style.top = y+'px';
+}
+function hideTip() { tip.style.display='none'; }
+svg.on('mousemove', moveTip);
+
+// ── CONTROLS ──────────────────────────────────────────────────────────────────
+document.getElementById('area-slider').addEventListener('input', function() {
+  minArea = +this.value;
+  document.getElementById('slider-val').textContent = minArea + ' km²';
+  clearSelection();
+  renderGraph();
+});
+
+function toggleLabels(btn) {
+  showLabels = !showLabels;
+  btn.textContent = (showLabels?'✓ ':'') + 'Labels';
+  btn.classList.toggle('on', showLabels);
+  if (labelSel) labelSel.style('display', showLabels ? null : 'none');
+}
+
+function resetGraph() {
+  nodes.forEach(d => { d.fx=null; d.fy=null; d.pinned=false; d.x=undefined; d.y=undefined; });
+  document.getElementById('area-slider').value = 0;
+  minArea = 0;
+  document.getElementById('slider-val').textContent = '0 km²';
+  clearSelection();
+  renderGraph();
+  svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+}
+
+function setLayout(type, btn) {
+  document.querySelectorAll('#tb .tbtn').forEach(b => { if(b.dataset.layout||b===btn) b.classList.remove('on'); });
+  btn.classList.add('on');
+  if (type === 'radial') {
+    if (sim) sim.stop();
+    const cx = W/2, cy = H/2;
+    const clusterMap = {};
+    clusters.forEach((c,i) => { clusterMap[c] = i; });
+    const total = clusters.length;
+    nodes.forEach(d => {
+      const angle = (clusterMap[d.cluster] / total) * 2*Math.PI;
+      const r = 200 + d.degree * 18;
+      d.x = cx + r * Math.cos(angle) + (Math.random()-.5)*60;
+      d.y = cy + r * Math.sin(angle) + (Math.random()-.5)*60;
+      d.fx = d.x; d.fy = d.y;
+    });
+    ticked();
+    setTimeout(() => {
+      nodes.forEach(d => { if (!d.pinned){ d.fx=null; d.fy=null; }});
+      if(sim) sim.alpha(.3).restart();
+    }, 800);
+  } else {
+    nodes.forEach(d => { if(!d.pinned){ d.fx=null; d.fy=null; }});
+    if(sim) sim.alpha(.6).restart();
+  }
+}
+document.getElementById('btn-force').dataset.layout = 'force';
+document.getElementById('btn-radial').dataset.layout = 'radial';
+
+// ── RESIZE ────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  if (sim) sim.force('center', d3.forceCenter(W/2, H/2)).alpha(.3).restart();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+renderGraph();
+setTimeout(() => svg.call(zoom.transform, d3.zoomIdentity.translate(0,0).scale(1)), 100);
+</script>
+</body>
+</html>

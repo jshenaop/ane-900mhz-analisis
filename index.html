@@ -7,20 +7,23 @@
   body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e0e6f0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0}
   h1{color:#7eb8f7;margin-bottom:8px;font-size:22px}
   p{color:#7a8fb5;margin-bottom:40px;font-size:13px}
-  .btns{display:flex;gap:20px}
-  a{display:block;padding:16px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;transition:all .2s}
+  .btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  a{display:block;padding:14px 26px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;transition:all .2s;text-align:center}
   .isp{background:#1a3a6a;color:#7eb8f7;border:2px solid #3A86FF}
   .isp:hover{background:#3A86FF;color:#fff}
   .com{background:#1a3a1a;color:#7ec87a;border:2px solid #7EC87A}
   .com:hover{background:#4a9a4a;color:#fff}
+  .graph{background:#1a1a3a;color:#c07af7;border:2px solid #8338EC}
+  .graph:hover{background:#8338EC;color:#fff}
 </style>
 </head>
 <body>
 <h1>Análisis Espectro 900 MHz</h1>
 <p>Detección de traslapes geográficos entre solicitantes · ANE Colombia 2025</p>
 <div class="btns">
-  <a class="isp" href="Analisis_900MHz_ISP.html">📡 ISPs (23 expedientes)</a>
-  <a class="com" href="Analisis_900MHz_Comunitarias.html">🌿 Comunitarias (12 expedientes)</a>
+  <a class="isp"   href="Analisis_900MHz_ISP.html">📡 Mapa ISPs</a>
+  <a class="com"   href="Analisis_900MHz_Comunitarias.html">🌿 Mapa Comunitarias</a>
+  <a class="graph" href="Grafo_Traslapes_ISP.html">🕸 Grafo de Traslapes ISP</a>
 </div>
 </body>
 </html>
